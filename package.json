@@ -1,0 +1,10 @@
+{
+  "name": "avatar-post-bot",
+  "version": "1.0.0",
+  "main": "bot.js",
+  "dependencies": {
+    "discord.js": "^14.14.1",
+    "canvas": "^2.11.2",
+    "gifencoder": "^2.0.1"
+  }
+}
