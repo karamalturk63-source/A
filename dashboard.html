@@ -1,0 +1,208 @@
+
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>لوحة تحكم البوت</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #10121b;
+      color: #f4f5fb;
+    }
+    header {
+      padding: 22px 18px;
+      background: #191c2a;
+      border-bottom: 1px solid #303447;
+    }
+    header h1 { margin: 0 0 8px; font-size: 25px; }
+    header p { margin: 0; color: #aeb5ca; }
+    main { max-width: 850px; margin: auto; padding: 18px; }
+    .card {
+      background: #191c2a;
+      border: 1px solid #303447;
+      border-radius: 15px;
+      padding: 18px;
+      margin-bottom: 16px;
+    }
+    h2 { font-size: 19px; margin-top: 0; }
+    .item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid #303447;
+    }
+    .item:last-child { border-bottom: 0; }
+    .desc { color: #aeb5ca; font-size: 13px; margin-top: 5px; }
+    button, select, input {
+      border: 0;
+      border-radius: 9px;
+      padding: 11px;
+      font-size: 14px;
+    }
+    button {
+      color: white;
+      background: #5865f2;
+      cursor: pointer;
+    }
+    button:active { opacity: .8; }
+    .secondary { background: #34394d; }
+    .field { display: grid; gap: 9px; margin-top: 12px; }
+    input, select {
+      width: 100%;
+      background: #10121b;
+      color: white;
+      border: 1px solid #383e54;
+    }
+    .switch { width: 22px; height: 22px; accent-color: #5865f2; }
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    #status { color: #aeb5ca; font-size: 13px; margin-top: 12px; }
+    .note { color: #f5cb76; font-size: 13px; line-height: 1.8; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🎮 لوحة تحكم البوت</h1>
+    <p>إدارة الألعاب والترحيب وأوامر الديسكورد</p>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>🤖 حالة البوت</h2>
+      <p id="botStatus">لم يتم ربط البوت بالخادم بعد.</p>
+      <button onclick="showStatus()">فحص الاتصال</button>
+      <p class="desc">هذه الواجهة تحتاج إلى خادم خلفي لتتحكم بالبوت فعليًا.</p>
+    </section>
+
+    <section class="card">
+      <h2>🎯 الألعاب</h2>
+      <div id="games"></div>
+    </section>
+
+    <section class="card">
+      <h2>🛡️ أوامر الإدارة</h2>
+      <div id="moderation"></div>
+    </section>
+
+    <section class="card">
+      <h2>👋 إعدادات الترحيب</h2>
+      <div class="field">
+        <label for="welcomeChannel">معرّف روم الترحيب</label>
+        <input id="welcomeChannel" placeholder="أدخل معرّف الروم">
+        <label for="welcomeMessage">رسالة الترحيب</label>
+        <input id="welcomeMessage"
+          value="أهلًا {user} نورت السيرفر!">
+        <button onclick="saveWelcome()">حفظ الإعدادات محليًا</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>🖼️ الافتار والبنر</h2>
+      <p class="desc">الأوامر الحالية في بوتك هي avatar و banner.</p>
+      <div class="actions">
+        <button onclick="showCommand('/avatar')">عرض أمر الافتار</button>
+        <button onclick="showCommand('/banner')">عرض أمر البنر</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>💾 حفظ الإعدادات</h2>
+      <button onclick="exportSettings()">تنزيل نسخة الإعدادات</button>
+      <p class="note">
+        هذه النسخة تحفظ إعدادات الواجهة على جهازك فقط.
+        تفعيل الأوامر وربطها بسيرفر Discord يتطلب إعداد الخادم الخلفي.
+      </p>
+    </section>
+
+    <p id="status" role="status">اللوحة جاهزة للتهيئة.</p>
+  </main>
+
+  <script>
+    const gameNames = [
+      ["roulette", "🎡 الروليت"],
+      ["mafia", "🕵️ المافيا"],
+      ["chairs", "🪑 الكراسي"],
+      ["hideSeek", "🙈 الغميضة"],
+      ["xo", "❌⭕ إكس أو"],
+      ["solo", "🧩 الألعاب الفردية"]
+    ];
+
+    const modNames = [
+      ["kick", "/kick — طرد عضو"],
+      ["ban", "/ban — حظر عضو"],
+      ["timeout", "/timeout — كتم مؤقت"],
+      ["warn", "/warn — تحذير عضو"],
+      ["clear", "/clear — مسح الرسائل"],
+      ["lock", "/lock — قفل الروم"],
+      ["unlock", "/unlock — فتح الروم"],
+      ["role", "/role — إدارة الرتب"]
+    ];
+
+    const settings = {
+      games: {},
+      moderation: {},
+      welcome: { channel: "", message: "أهلًا {user} نورت السيرفر!" }
+    };
+
+    function renderItems(target, items, group) {
+      document.getElementById(target).innerHTML = items.map(
+        ([key, title]) => `
+          <div class="item">
+            <span>${title}</span>
+            <input class="switch" type="checkbox"
+              aria-label="${title}"
+              onchange="toggleSetting('${group}','${key}',this.checked)">
+          </div>`
+      ).join("");
+    }
+
+    function toggleSetting(group, key, enabled) {
+      settings[group][key] = enabled;
+      document.getElementById("status").textContent =
+        "تم تعديل الواجهة. لم تُرسل التغييرات إلى البوت.";
+    }
+
+    function showStatus() {
+      document.getElementById("botStatus").textContent =
+        "غير متصل: لم تتم إضافة واجهة الخادم بعد.";
+    }
+
+    function saveWelcome() {
+      settings.welcome.channel =
+        document.getElementById("welcomeChannel").value.trim();
+      settings.welcome.message =
+        document.getElementById("welcomeMessage").value;
+      document.getElementById("status").textContent =
+        "تم تحديث إعدادات الترحيب في الواجهة.";
+    }
+
+    function showCommand(command) {
+      document.getElementById("status").textContent =
+        "استخدم الأمر " + command + " داخل سيرفر Discord.";
+    }
+
+    function exportSettings() {
+      const file = new Blob(
+        [JSON.stringify(settings, null, 2)],
+        { type: "application/json" }
+      );
+      const url = URL.createObjectURL(file);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "bot-settings.json";
+      link.click();
+      URL.revokeObjectURL(url);
+      document.getElementById("status").textContent =
+        "تم تجهيز ملف الإعدادات للتنزيل.";
+    }
+
+    renderItems("games", gameNames, "games");
+    renderItems("moderation", modNames, "moderation");
+  </script>
+</body>
+</html>
