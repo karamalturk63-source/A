@@ -1,7 +1,9 @@
-const { 
-  Client, 
-  GatewayIntentBits, 
-  Partials, 
+const {
+  Client,
+  GatewayIntentBits,
+  SlashCommandBuilder,
+  REST,
+  Routes,
   EmbedBuilder,
   ActionRowBuilder,
   ButtonBuilder,
@@ -9,205 +11,180 @@ const {
 } = require('discord.js');
 
 const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent,
-    GatewayIntentBits.GuildMembers
-  ],
-  partials: [Partials.User, Partials.GuildMember]
+  intents: [GatewayIntentBits.Guilds]
 });
 
 // ==========================================
 // 🗝️ التوكن مقسوم لتفادي حظر جيت هب
 // ==========================================
-const part1 = "MTU0NDcxMDgxNjQ0NjgxMjMxMQ."; 
-const part2 = "G0DeTI.CTMMMz0K_QjmALBKYjM8U0IogLTLa6brcrKfkY"; 
+const part1 = "MTU0NDcxMDgxNjQ0NjgxMjMxMQ."; // حط الجزء الأول هون
+const part2 = "G0DeTI.CTMMMz0K_QjmALBKYjM8U0IogLTLa6brcrKfkY"; // حط الجزء الثاني هون
+const TOKEN = part1 + part2;
 
-const PREFIX = "!";
+// إذا كنت حاط الـ CLIENT_ID والـ GUILD_ID ككود صريح بدل الـ env حطهم هنا أو استبدلهم:
+const CLIENT_ID = "حط_الـ_Client_ID_هنا"; // أو خليه إذا بتستخدم بيئة العمل
+const GUILD_ID = "حط_الـ_Guild_ID_هنا";  // أو خليه إذا بتستخدم بيئة العمل
 
-client.once('ready', () => {
-  console.log(`✅ البوت شغال بنجاح باسم: ${client.user.tag}`);
-});
+const commands = [
+  new SlashCommandBuilder()
+    .setName('avatar')
+    .setDescription("View a user's avatar")
+    .addUserOption(o =>
+      o.setName('user')
+        .setDescription('Choose a user')
+        .setRequired(false)
+    ),
 
-// قائمة الأعلام للعبة
-const flagsList = [
-  { name: 'تشيلي', image: 'https://flagcdn.com/w640/cl.png' },
-  { name: 'المغرب', image: 'https://flagcdn.com/w640/ma.png' },
-  { name: 'اليابان', image: 'https://flagcdn.com/w640/jp.png' },
-  { name: 'البرازيل', image: 'https://flagcdn.com/w640/br.png' },
-  { name: 'فرنسا', image: 'https://flagcdn.com/w640/fr.png' },
-  { name: 'إسبانيا', image: 'https://flagcdn.com/w640/es.png' }
-];
+  new SlashCommandBuilder()
+    .setName('banner')
+    .setDescription("View a user's banner")
+    .addUserOption(o =>
+      o.setName('user')
+        .setDescription('Choose a user')
+        .setRequired(false)
+    )
+].map(command => command.toJSON());
 
-client.on('messageCreate', async (message) => {
-  if (message.author.bot || !message.content.startsWith(PREFIX)) return;
+client.once('ready', async () => {
+  console.log(`Logged in as ${client.user.tag}`);
 
-  const args = message.content.slice(PREFIX.length).trim().split(/ +/);
-  const command = args.shift().toLowerCase();
+  const rest = new REST({ version: '10' }).setToken(TOKEN);
 
-  // -------------------------------------------------------------
-  // 1️⃣ أمر دمج الصور (بدون نص علوي، زر Download للخاص)
-  // -------------------------------------------------------------
-  if (command === 'design' || command === 'تصميم' || command === 'دمج') {
-    const attachments = [...message.attachments.values()];
-
-    if (attachments.length < 2) {
-      return message.reply('⚠️ يرجى إرفاق الصورتين (البنر والأفاتار) مع الأمر في نفس الرسالة.');
-    }
-
-    const bannerUrl = attachments[0].url; 
-    const avatarUrl = attachments[1].url; 
-
-    const resultEmbed = new EmbedBuilder()
-      .setColor('#2b2d31')
-      .setThumbnail(avatarUrl)
-      .setImage(bannerUrl);
-
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId(`send_dm_${message.author.id}`)
-        .setLabel('Download')
-        .setStyle(ButtonStyle.Secondary)
-        .setEmoji('📥')
+  try {
+    await rest.put(
+      Routes.applicationGuildCommands(client.user.id, GUILD_ID),
+      { body: commands }
     );
 
-    client.tempStorage = client.tempStorage || new Map();
-    client.tempStorage.set(message.author.id, { bannerUrl, avatarUrl });
-
-    return message.reply({ embeds: [resultEmbed], components: [row] });
+    console.log('Slash commands registered!');
+  } catch (error) {
+    console.error(error);
   }
+});
 
-  // -------------------------------------------------------------
-  // 2️⃣ لعبة علم أي دولة؟
-  // -------------------------------------------------------------
-  if (command === 'علم' || command === 'flag') {
-    const randomFlag = flagsList[Math.floor(Math.random() * flagsList.length)];
+client.on('interactionCreate', async interaction => {
+  if (interaction.isChatInputCommand()) {
+    const target = interaction.options.getUser('user')
+      || interaction.user;
 
-    const flagEmbed = new EmbedBuilder()
-      .setTitle('🌍 | علم أي دولة ؟')
-      .setImage(randomFlag.image)
-      .setColor('#3498DB')
-      .setFooter({ text: 'لديك 15 ثانية للإجابة بكتابة اسم الدولة في الشات!' });
+    if (interaction.commandName === 'avatar') {
+      const url = target.displayAvatarURL({
+        size: 4096,
+        extension: 'png',
+        forceStatic: false
+      });
 
-    await message.reply({ embeds: [flagEmbed] });
+      const embed = new EmbedBuilder()
+        .setColor(0x5865F2)
+        .setTitle(`${target.username}'s Avatar`)
+        .setImage(url)
+        .setURL(url);
 
-    const filter = (m) => !m.author.bot;
-    const collector = message.channel.createMessageCollector({ filter, time: 15000, max: 1 });
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`download_avatar_${interaction.id}`)
+          .setLabel('Download')
+          .setStyle(ButtonStyle.Primary)
+      );
 
-    collector.on('collect', (m) => {
-      if (m.content.trim() === randomFlag.name) {
-        m.react('🎉');
-        return message.channel.send(`🏆 كفو يا ${m.author}، قام بالإجابة قبل انتهاء الوقت الصحيح: **${randomFlag.name}**!`);
-      }
-    });
+      await interaction.reply({
+        embeds: [embed],
+        components: [row]
+      });
 
-    collector.on('end', (collected) => {
-      if (collected.size === 0) {
-        return message.channel.send(`⏰ انتهى الوقت! الإجابة الصحيحة كانت: **${randomFlag.name}**.`);
-      }
-    });
-  }
+      downloads.set(interaction.id, {
+        url,
+        owner: interaction.user.id
+      });
 
-  // -------------------------------------------------------------
-  // 3️⃣ لعبة الروليت (تم تصحيح الخطأ البرمجي هنا)
-  // -------------------------------------------------------------
-  if (command === 'روليت' || command === 'roulette') {
-    const rouletteEmbed = new EmbedBuilder()
-      .setTitle('🎡 روليت')
-      .setDescription("طريقة اللعب:\n1- اختر الرقم الذي سيمثلك في اللعبة\n2- ستبدأ الجولة الأولى وسيتم تدوير العجلة واختيار لاعب عشوائي\n3- إذا كنت اللاعب المختار، فستختار لاعباً من اختيارك ليتم طرده من اللعبة\n4- يُطرد اللاعب وتبدأ جولة جديدة، عندما يُطرد جميع اللاعبين ويتبقى لاعبان فقط، ستدور العجلة ويكون اللاعب المختار هو الفائز باللعبة\n\n**أرقام اللاعبين: (0/20)**\nلا يوجد لاعبين مشاركين باللعبة")
-      .setColor('#F1C40F')
-      .setFooter({ text: 'ستبدأ اللعبة بعد 30 ثانية' });
+      return;
+    }
 
-    const rows = [];
-    for (let i = 0; i < 4; i++) {
-      const row = new ActionRowBuilder();
-      for (let j = 1; j <= 5; j++) {
-        const num = i * 5 + j;
-        row.addComponents(
-          new ButtonBuilder()
-            .setCustomId(`roulette_num_${num}`)
-            .setLabel(`${num}`)
-            .setStyle(ButtonStyle.Primary)
+    if (interaction.commandName === 'banner') {
+      await interaction.deferReply();
+
+      const user = await client.users.fetch(target.id, {
+        force: true
+      });
+
+      const url = user.bannerURL({
+        size: 4096,
+        extension: user.banner?.startsWith('a_')
+          ? 'gif'
+          : 'png'
+      });
+
+      if (!url) {
+        await interaction.editReply(
+          'This user has no Discord profile banner.'
         );
+        return;
       }
-      rows.push(row);
+
+      const embed = new EmbedBuilder()
+        .setColor(0x5865F2)
+        .setTitle(`${user.username}'s Banner`)
+        .setImage(url)
+        .setURL(url);
+
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`download_banner_${interaction.id}`)
+          .setLabel('Download')
+          .setStyle(ButtonStyle.Primary)
+      );
+
+      await interaction.editReply({
+        embeds: [embed],
+        components: [row]
+      });
+
+      downloads.set(interaction.id, {
+        url,
+        owner: interaction.user.id
+      });
     }
-
-    const controlRow = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('roulette_join').setLabel('انضم للعبة').setStyle(ButtonStyle.Success),
-      new ButtonBuilder().setCustomId('roulette_leave').setLabel('انسحب').setStyle(ButtonStyle.Danger)
-    );
-    rows.push(controlRow);
-
-    return message.reply({ embeds: [rouletteEmbed], components: rows });
   }
 
-  // -------------------------------------------------------------
-  // 4️⃣ لعبة المافيا
-  // -------------------------------------------------------------
-  if (command === 'مافيا' || command === 'mafia') {
-    const mafiaEmbed = new EmbedBuilder()
-      .setTitle('🕵️‍♂️ | لعبة المافيا')
-      .setDescription("شرح اللعبة:\n1- انضم للعبة عبر الزر الأخضر الموجود في الأسفل.\n2- كل لاعب يحصل على دور سري (مافيا، مواطن، طبيب، وغيرها).\n3- تتصرف الأدوار الخاصة سرأً؛ نهاراً يصوت الجميع لطرد مشتبه.\n4- يفوز المواطنون بإقصاء جميع القاتلين، المافيا تفوز إن تفوق عددهم على المواطنين المتبقيين.\n\n**المشاركين (0/20):**")
-      .setColor('#E74C3C')
-      .setFooter({ text: 'in 30 seconds' });
-
-    const mafiaRow = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('join_mafia').setLabel('مافيا').setStyle(ButtonStyle.Secondary).setEmoji('🕵️‍♂️')
+  if (interaction.isButton()) {
+    const data = downloads.get(
+      interaction.customId.split('_').slice(2).join('_')
     );
-
-    return message.reply({ embeds: [mafiaEmbed], components: [mafiaRow] });
-  }
-});
-
-// -------------------------------------------------------------
-// 🖱️ معالجة التفاعلات (الأزرار والخاص)
-// -------------------------------------------------------------
-client.on('interactionCreate', async (interaction) => {
-  if (!interaction.isButton()) return;
-
-  if (interaction.customId.startsWith('send_dm_')) {
-    const userId = interaction.customId.replace('send_dm_', '');
-    const data = client.tempStorage?.get(userId);
 
     if (!data) {
-      return interaction.reply({ content: '❌ انتهت صلاحية هذا الرابط، قم بطلب الأمر من جديد.', ephemeral: true });
+      await interaction.reply({
+        content: 'This download button has expired.',
+        ephemeral: true
+      });
+      return;
+    }
+
+    if (data.owner !== interaction.user.id) {
+      await interaction.reply({
+        content: 'This button belongs to another user.',
+        ephemeral: true
+      });
+      return;
     }
 
     try {
-      const dmEmbed = new EmbedBuilder()
-        .setTitle('Nice profile')
-        .setColor('#2b2d31')
-        .setThumbnail(data.avatarUrl)
-        .setImage(data.bannerUrl);
+      await interaction.user.send({
+        content: `Your image download link:\n${data.url}`
+      });
 
-      const downloadRow = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setLabel('تحميل البنر').setStyle(ButtonStyle.Link).setURL(data.bannerUrl),
-        new ButtonBuilder().setLabel('تحميل الأفاتار').setStyle(ButtonStyle.Link).setURL(data.avatarUrl)
-      );
-
-      await interaction.user.send({ content: 'Nice profile', embeds: [dmEmbed], components: [downloadRow] });
-      return interaction.reply({ content: '✅ تم إرسال الصور إلى الخاص بنجاح بعبارة **Nice profile**!', ephemeral: true });
-    } catch (err) {
-      return interaction.reply({ content: '❌ لم أتمكن من إرسال الرسالة على الخاص، تأكد من فتح الرسائل الخاصة لديك.', ephemeral: true });
+      await interaction.reply({
+        content: 'Check your DMs!',
+        ephemeral: true
+      });
+    } catch {
+      await interaction.reply({
+        content: 'Enable DMs from server members and try again.',
+        ephemeral: true
+      });
     }
-  }
-
-  if (interaction.customId.startsWith('roulette_')) {
-    if (interaction.customId === 'roulette_join') {
-      return interaction.reply({ content: `✅ تم تسجيليك في لعبة الروليت بنجاح!`, ephemeral: true });
-    }
-    if (interaction.customId === 'roulette_leave') {
-      return interaction.reply({ content: `❌ تم انسحابك من لعبة الروليت.`, ephemeral: true });
-    }
-    const num = interaction.customId.replace('roulette_num_', '');
-    return interaction.reply({ content: `🎯 لقد اخترت الرقم: **${num}**`, ephemeral: true });
-  }
-
-  if (interaction.customId === 'join_mafia') {
-    return interaction.reply({ content: `✅ انضممت بنجاح إلى لعبة المافيا يا ${interaction.user}!`, ephemeral: true });
   }
 });
 
-client.login(part1 + part2);
+const downloads = new Map();
+
+client.login(TOKEN);
