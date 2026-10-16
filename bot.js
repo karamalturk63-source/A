@@ -22,192 +22,166 @@ const client = new Client({
 // ==========================================
 // 🗝️ التوكن مقسوم لتفادي حظر جيت هب
 // ==========================================
-const part1 = "MTU0NDcxMDgxNjQ0NjgxMjMxMQ."; // الجزء الأول من توكنك
-const part2 = "G0DeTI.CTMMMz0K_QjmALBKYjM8U0IogLTLa6brcrKfkY"; // الجزء الثاني من توكنك
+const part1 = "MTU0NDcxMDgxNjQ0NjgxMjMxMQ."; 
+const part2 = "G0DeTI.CTMMMz0K_QjmALBKYjM8U0IogLTLa6brcrKfkY"; 
 
 const PREFIX = "!";
 
 client.once('ready', () => {
-  console.log(`✅ تم تسجيل الدخول بنجاح! بوت نوفا المصغر شغال باسم: ${client.user.tag}`);
-  client.user.setActivity('!دمج | !tanks', { type: 3 }); // Watching status
+  console.log(`✅ البوت شغال بنجاح باسم: ${client.user.tag}`);
 });
 
-// -------------------------------------------------------------
-// 👋 نظام الترحيب بالأعضاء الجدد
-// -------------------------------------------------------------
-client.on('guildMemberAdd', (member) => {
-  const channel = member.guild.systemChannel;
-  if (!channel) return;
+// قائمة الأعلام للعبة
+const flagsList = [
+  { name: 'تشيلي', image: 'https://flagcdn.com/w640/cl.png' },
+  { name: 'المغرب', image: 'https://flagcdn.com/w640/ma.png' },
+  { name: 'اليابان', image: 'https://flagcdn.com/w640/jp.png' },
+  { name: 'البرازيل', image: 'https://flagcdn.com/w640/br.png' },
+  { name: 'فرنسا', image: 'https://flagcdn.com/w640/fr.png' },
+  { name: 'إسبانيا', image: 'https://flagcdn.com/w640/es.png' }
+];
 
-  const welcomeEmbed = new EmbedBuilder()
-    .setTitle('✨ عضو جديد انضم إلينا!')
-    .setDescription(`أهلاً بك يا ${member} في سيرفر **${member.guild.name}**!\nنورتنا يا بطل 🚀`)
-    .setColor('#5865F2')
-    .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
-    .setTimestamp();
-
-  channel.send({ embeds: [welcomeEmbed] });
-});
-
-// -------------------------------------------------------------
-// 💬 استقبال الأوامر التفاعلية
-// -------------------------------------------------------------
 client.on('messageCreate', async (message) => {
   if (message.author.bot || !message.content.startsWith(PREFIX)) return;
 
   const args = message.content.slice(PREFIX.length).trim().split(/ +/);
   const command = args.shift().toLowerCase();
 
-  // 1️⃣ أمر دمج الأفاتار والبنر (المطابقة)
+  // 1️⃣ أمر التصميم المطابق (دمج)
   if (command === 'design' || command === 'تصميم' || command === 'دمج') {
     const attachments = message.attachments.map(att => att.url);
 
     if (attachments.length < 2) {
-      const errorEmbed = new EmbedBuilder()
-        .setTitle('⚠️ تنبيه بخصوص الصور')
-        .setDescription('يرجى إرفاق **صورتين** مع الأمر:\n1. صورة البنر (الخلفية العريضة)\n2. صورة الأفاتار (الدائرية)\n\n**طريقة الاستخدام:**\n`!دمج` مع إرفاق الصورتين معاً في نفس الرسالة.')
-        .setColor('#ED4245');
-      return message.reply({ embeds: [errorEmbed] });
+      return message.reply('⚠️ يرجى إرفاق الصورتين مع الأمر.');
     }
 
     const bannerUrl = attachments[0]; 
     const avatarUrl = attachments[1]; 
 
     const resultEmbed = new EmbedBuilder()
-      .setTitle(`✨ تصميم البروفايل المتناسق (Matching Set)`)
-      .setDescription('تم استلام الصور وتنسيقها بالشكل المطلوب بنجاح:')
-      .setColor('#5865F2')
+      .setColor('#2b2d31')
       .setThumbnail(avatarUrl)
-      .setImage(bannerUrl)
-      .setFooter({ text: `تم الطلب بواسطة: ${message.author.username}`, iconURL: message.author.displayAvatarURL() })
-      .setTimestamp();
+      .setImage(bannerUrl);
 
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
-        .setLabel('تحميل البنر')
-        .setStyle(ButtonStyle.Link)
-        .setURL(bannerUrl),
-      new ButtonBuilder()
-        .setLabel('تحميل الأفاتار')
-        .setStyle(ButtonStyle.Link)
-        .setURL(avatarUrl)
+        .setCustomId(`send_dm_${message.author.id}`)
+        .setLabel('Download')
+        .setStyle(ButtonStyle.Secondary)
+        .setEmoji('')
     );
+
+    client.tempStorage = client.tempStorage || new Map();
+    client.tempStorage.set(message.author.id, { bannerUrl, avatarUrl });
 
     return message.reply({ embeds: [resultEmbed], components: [row] });
   }
 
-  // 2️⃣ أمر إنشاء لوحة التذاكر (Tickets Panel)
-  if (command === 'ticket' || command === 'تذكرة') {
-    if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) {
-      return message.reply('❌ هذا الأمر للأعضاء الإداريين فقط.');
-    }
+  // 2️⃣ لعبة علم أي دولة؟ (مثل الصورة)
+  if (command === 'علم' || command === 'flag') {
+    const randomFlag = flagsList[Math.floor(Math.random() * flagsList.length)];
 
-    const ticketEmbed = new EmbedBuilder()
-      .setTitle('🎫 نظام الدعم الفني والتذاكر')
-      .setDescription('إذا بحاجة لأي مساعدة، استفسار، أو تريد طلب تصميم خاص، اضغط على الزر أدناه لفتح تذكرة خاصة لك!')
-      .setColor('#57F287')
-      .setFooter({ text: 'نظام الدعم الفني المتطور' });
+    const flagEmbed = new EmbedBuilder()
+      .setTitle('🌍 | علم أي دولة ؟')
+      .setImage(randomFlag.image)
+      .setColor('#3498DB')
+      .setFooter({ text: 'لديك 15 ثانية للإجابة بكتابة اسم الدولة في الشات!' });
 
-    const ticketRow = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId('create_ticket')
-        .setLabel('فتح تذكرة جديدة')
-        .setStyle(ButtonStyle.Success)
-        .setEmoji('📩')
-    );
+    await message.reply({ embeds: [flagEmbed] });
 
-    return message.channel.send({ embeds: [ticketEmbed], components: [ticketRow] });
-  }
+    const filter = (m) => !m.author.bot;
+    const collector = message.channel.createMessageCollector({ filter, time: 15000, max: 1 });
 
-  // 3️⃣ أمر مسح الرسائل (Clear)
-  if (command === 'clear' || command === 'مسح') {
-    if (!message.member.permissions.has(PermissionFlagsBits.ManageMessages)) {
-      return message.reply('❌ لا تملك صلاحية لإدارة الرسائل!');
-    }
-
-    const count = parseInt(args[0]);
-    if (!count || count < 1 || count > 100) {
-      return message.reply('⚠️ يرجى تحديد عدد الرسائل المراد مسحها بين (1 و 100).');
-    }
-
-    await message.channel.bulkDelete(count, true).catch(err => {
-      return message.reply('❌ حدث خطأ، لا يمكن مسح رسائل أقدم من 14 يوماً.');
+    collector.on('collect', (m) => {
+      if (m.content.trim() === randomFlag.name) {
+        m.react('🎉');
+        return message.channel.send(`🏆 كفو يا ${m.author}، قام بالإجابة قبل انتهاء الوقت الصحيح: **${randomFlag.name}**!`);
+      }
     });
 
-    const msg = await message.channel.send(`✅ تم مسح \`${count}\` رسالة بنجاح.`);
-    setTimeout(() => msg.delete().catch(), 3000);
+    collector.on('end', (collected) => {
+      if (collected.size === 0) {
+        return message.channel.send(`⏰ انتهى الوقت! الإجابة الصحيحة كانت: **${randomFlag.name}**.`);
+      }
+    });
   }
 
-  // 4️⃣ لوحة معلومات البوت
-  if (command === 'panel' || command === 'لوحة') {
-    const infoEmbed = new EmbedBuilder()
-      .setTitle('🤖 لوحة معلومات بوت التصميم والإشراف')
-      .addFields(
-        { name: '🌐 عدد السيرفرات', value: `${client.guilds.cache.size}`, inline: true },
-        { name: '📡 سرعة البينغ', value: `${client.ws.ping}ms`, inline: true },
-        { name: '⚙️ الأوامر المتاحة', value: '`!دمج` (للصور), `!تذكرة` (للدعم), `!مسح` (للإشراف)', inline: false }
-      )
-      .setColor('#FEE75C')
-      .setThumbnail(client.user.displayAvatarURL());
+  //3️⃣  روليت  (تختار شخص عشوائي مع عجلة حظ)
+  if (command === 'روليت' || command === 'roulette') {
+    const guildMembers = await message.guild.members.fetch();
+    const humanMembers = guildMembers.filter(m => !m.user.bot);
+    const randomMember = humanMembers.random();
 
-    return message.reply({ embeds: [infoEmbed] });
+    const rouletteEmbed = new EmbedBuilder()
+      .setTitle('🎡 | عجلة حظ الروليت')
+      .setDescription('🔄 جاري تدوير العجلة لاختيار شخص عشوائي...')
+      .setColor('#F1C40F');
+
+    const msg = await message.reply({ embeds: [rouletteEmbed] });
+
+    setTimeout(() => {
+      const winnerEmbed = new EmbedBuilder()
+        .setTitle('🎡 | نتيجة روليت الحظ')
+        .setDescription(`🎉 الشخص الذي وقع عليه الاختيار هو:\n### 👑 ${randomMember.user}!`)
+        .setThumbnail(randomMember.user.displayAvatarURL({ dynamic: true }))
+        .setColor('#2ECC71');
+
+      msg.edit({ embeds: [winnerEmbed] });
+    }, 3000);
+  }
+
+  // مافيا
+  if (command === 'مافيا' || command === 'mafia') {
+    const mafiaEmbed = new EmbedBuilder()
+      .setTitle('🕵️‍♂️ | لعبة المافيا السريعة')
+      .setDescription('تم بدء تسجيل المشاركين في لعبة المافيا!\nاضغط على الزر أدناه للانضمام للعبة.')
+      .setColor('#E74C3C');
+
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('join_mafia').setLabel('انضم للعبة 🎮').setStyle(ButtonStyle.Success)
+    );
+
+    return message.reply({ embeds: [mafiaEmbed], components: [row] });
   }
 });
 
 // -------------------------------------------------------------
-// 🎫 التفاعل مع زر فتح التذاكر
+// 🖱️ التفاعلات مع الأزرار
 // -------------------------------------------------------------
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isButton()) return;
 
-  if (interaction.customId === 'create_ticket') {
-    const guild = interaction.guild;
-    const user = interaction.user;
+  // إرسال الصور للخاص عند ضغط Download
+  if (interaction.customId.startsWith('send_dm_')) {
+    const userId = interaction.customId.replace('send_dm_', '');
+    const data = client.tempStorage?.get(userId);
 
-    // إنشاء روم خاص بالتذكرة
+    if (!data) {
+      return interaction.reply({ content: '❌ انتهت صلاحية هذا الرابط.', ephemeral: true });
+    }
+
     try {
-      const channel = await guild.channels.create({
-        name: `ticket-${user.username}`,
-        type: 0, // Guild Text Channel
-        permissionOverwrites: [
-          {
-            id: guild.id,
-            deny: [PermissionFlagsBits.ViewChannel],
-          },
-          {
-            id: user.id,
-            allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory],
-          },
-        ],
-      });
+      const dmEmbed = new EmbedBuilder()
+        .setTitle('Nice profile')
+        .setColor('#2b2d31')
+        .setThumbnail(data.avatarUrl)
+        .setImage(data.bannerUrl);
 
-      const closeRow = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-          .setCustomId('close_ticket')
-          .setLabel('إغلاق التذكرة')
-          .setStyle(ButtonStyle.Danger)
-          .setEmoji('🔒')
+      const downloadRow = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setLabel('تحميل البنر').setStyle(ButtonStyle.Link).setURL(data.bannerUrl),
+        new ButtonBuilder().setLabel('تحميل الأفاتار').setStyle(ButtonStyle.Link).setURL(data.avatarUrl)
       );
 
-      const welcomeTicketEmbed = new EmbedBuilder()
-        .setTitle(`🎫 تذكرة العضو: ${user.username}`)
-        .setDescription('مرحباً بك! تفضل بطرح مشكلتك أو طلبك (مثل طلبات التصميم والبنرات)، وسيتم الرد عليك قريباً من قبل الإدارة.')
-        .setColor('#5865F2');
-
-      await channel.send({ content: `${user}`, embeds: [welcomeTicketEmbed], components: [closeRow] });
-
-      return interaction.reply({ content: `✅ تم فتح تذكرتك بنجاح هنا: ${channel}`, ephemeral: true });
-    } catch (e) {
-      return interaction.reply({ content: '❌ حدث خطأ أثناء إنشاء التذكرة، تأكد من صلاحيات البوت.', ephemeral: true });
+      await interaction.user.send({ content: 'Nice profile', embeds: [dmEmbed], components: [downloadRow] });
+      return interaction.reply({ content: '✅ تم إرسال الصور إلى الخاص بنجاح!', ephemeral: true });
+    } catch (err) {
+      return interaction.reply({ content: '❌ تأكد من فتح الرسائل الخاصة لديك.', ephemeral: true });
     }
   }
 
-  // زر إغلاق التذكرة
-  if (interaction.customId === 'close_ticket') {
-    await interaction.reply({ content: '🔒 سيتم إغلاق هذه التذكرة خلال 5 ثوانٍ...', ephemeral: true });
-    setTimeout(() => {
-      interaction.channel.delete().catch();
-    }, 5000);
+  // الانضمام للمافيا
+  if (interaction.customId === 'join_mafia') {
+    return interaction.reply({ content: `✅ انضممت بنجاح إلى لعبة المافيا يا ${interaction.user}قريباً تبدأ الجولة!`, ephemeral: true });
   }
 });
 
