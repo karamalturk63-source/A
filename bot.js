@@ -5,8 +5,7 @@ const {
   EmbedBuilder,
   ActionRowBuilder,
   ButtonBuilder,
-  ButtonStyle,
-  PermissionFlagsBits
+  ButtonStyle
 } = require('discord.js');
 
 const client = new Client({
@@ -47,16 +46,18 @@ client.on('messageCreate', async (message) => {
   const args = message.content.slice(PREFIX.length).trim().split(/ +/);
   const command = args.shift().toLowerCase();
 
-  // 1️⃣ أمر التصميم المطابق (دمج)
+  // -------------------------------------------------------------
+  // 1️⃣ أمر دمج الصور (بدون نص علوي، زر Download للخاص)
+  // -------------------------------------------------------------
   if (command === 'design' || command === 'تصميم' || command === 'دمج') {
-    const attachments = message.attachments.map(att => att.url);
+    const attachments = [...message.attachments.values()];
 
     if (attachments.length < 2) {
-      return message.reply('⚠️ يرجى إرفاق الصورتين مع الأمر.');
+      return message.reply('⚠️ يرجى إرفاق الصورتين (البنر والأفاتار) مع الأمر في نفس الرسالة.');
     }
 
-    const bannerUrl = attachments[0]; 
-    const avatarUrl = attachments[1]; 
+    const bannerUrl = attachments[0].url; 
+    const avatarUrl = attachments[1].url; 
 
     const resultEmbed = new EmbedBuilder()
       .setColor('#2b2d31')
@@ -68,7 +69,7 @@ client.on('messageCreate', async (message) => {
         .setCustomId(`send_dm_${message.author.id}`)
         .setLabel('Download')
         .setStyle(ButtonStyle.Secondary)
-        .setEmoji('')
+        .setEmoji('📥')
     );
 
     client.tempStorage = client.tempStorage || new Map();
@@ -77,7 +78,9 @@ client.on('messageCreate', async (message) => {
     return message.reply({ embeds: [resultEmbed], components: [row] });
   }
 
-  // 2️⃣ لعبة علم أي دولة؟ (مثل الصورة)
+  // -------------------------------------------------------------
+  // 2️⃣ لعبة علم أي دولة؟
+  // -------------------------------------------------------------
   if (command === 'علم' || command === 'flag') {
     const randomFlag = flagsList[Math.floor(Math.random() * flagsList.length)];
 
@@ -106,58 +109,72 @@ client.on('messageCreate', async (message) => {
     });
   }
 
-  //3️⃣  روليت  (تختار شخص عشوائي مع عجلة حظ)
+  // -------------------------------------------------------------
+  // 3️⃣ لعبة الروليت (بأرقام الاختيار 1 إلى 20 وعجلة الحظ)[span_4](start_span)[span_4](end_span)
+  // -------------------------------------------------------------
   if (command === 'روليت' || command === 'roulette') {
-    const guildMembers = await message.guild.members.fetch();
-    const humanMembers = guildMembers.filter(m => !m.user.bot);
-    const randomMember = humanMembers.random();
-
     const rouletteEmbed = new EmbedBuilder()
-      .setTitle('🎡 | عجلة حظ الروليت')
-      .setDescription('🔄 جاري تدوير العجلة لاختيار شخص عشوائي...')
-      .setColor('#F1C40F');
+      .setTitle('🎡 روليت')
+      .setDescription('طريقة اللعب:\n1- اختر الرقم الذي سيمثلك في اللعبة\n2- ستبدأ الجولة الأولى وسيتم تدوير العجلة واختيار لاعب عشوائي[span_5](start_span)[span_5](end_span)\n3- إذا كنت اللاعب المختار، فستختار لاعباً من اختيارك ليتم طرده من اللعبة[span_6](start_span)[span_6](end_span)\n4- يُطرد اللاعب وتبدأ جولة جديدة، عندما يُطرد جميع اللاعبين ويتبقى لاعبان فقط، ستدور العجلة ويكون اللاعب المختار هو الفائز باللعبة[span_7](start_span)[span_7](end_span)\n\n**أرقام اللاعبين: (0/20)**\n'لا يوجد لاعبين مشاركين باللعبة'')
+      .setColor('#F1C40F')
+      .setFooter({ text: 'ستبدأ اللعبة بعد 30 ثانية' });
 
-    const msg = await message.reply({ embeds: [rouletteEmbed] });
+    // صفوف الأزرار للأرقام (من 1 إلى 20)
+    const rows = [];
+    for (let i = 0; i < 4; i++) {
+      const row = new ActionRowBuilder();
+      for (let j = 1; j <= 5; j++) {
+        const num = i * 5 + j;
+        row.addComponents(
+          new ButtonBuilder()
+            .setCustomId(`roulette_num_${num}`)
+            .setLabel(`${num}`)
+            .setStyle(ButtonStyle.Primary)
+        );
+      }
+      rows.push(row);
+    }
 
-    setTimeout(() => {
-      const winnerEmbed = new EmbedBuilder()
-        .setTitle('🎡 | نتيجة روليت الحظ')
-        .setDescription(`🎉 الشخص الذي وقع عليه الاختيار هو:\n### 👑 ${randomMember.user}!`)
-        .setThumbnail(randomMember.user.displayAvatarURL({ dynamic: true }))
-        .setColor('#2ECC71');
+    const controlRow = new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('roulette_join').setLabel('انضم للعبة').setStyle(ButtonStyle.Success),
+      new ButtonBuilder().setCustomId('roulette_leave').setLabel('انسحب').setStyle(ButtonStyle.Danger)
+    );
+    rows.push(controlRow);
 
-      msg.edit({ embeds: [winnerEmbed] });
-    }, 3000);
+    return message.reply({ embeds: [rouletteEmbed], components: rows });
   }
 
-  // مافيا
+  // -------------------------------------------------------------
+  // 4️⃣ لعبة المافيا[span_8](start_span)[span_8](end_span)
+  // -------------------------------------------------------------
   if (command === 'مافيا' || command === 'mafia') {
     const mafiaEmbed = new EmbedBuilder()
-      .setTitle('🕵️‍♂️ | لعبة المافيا السريعة')
-      .setDescription('تم بدء تسجيل المشاركين في لعبة المافيا!\nاضغط على الزر أدناه للانضمام للعبة.')
-      .setColor('#E74C3C');
+      .setTitle('🕵️‍♂️ | لعبة المافيا')
+      .setDescription('شرح اللعبة:\n1- انضم للعبة عبر الزر الأخضر الموجود في الأسفل[span_9](start_span)[span_9](end_span).\n2- كل لاعب يحصل على دور سري (مافيا، مواطن، طبيب، وغيرها)[span_10](start_span)[span_10](end_span).\n3- تتصرف الأدوار الخاصة سرأً؛ نهاراً يصوت الجميع لطر طرد مشتبه[span_11](start_span)[span_11](end_span).\n4- يفوز المواطنون بإقصاء جميع القاتلين، المافيا تفوز إن تفوق عددهم على المواطنين المتبقيين[span_12](start_span)[span_12](end_span).\n\n**المشاركين (0/20):**')
+      .setColor('#E74C3C')
+      .setFooter({ text: 'in 30 seconds' });
 
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('join_mafia').setLabel('انضم للعبة 🎮').setStyle(ButtonStyle.Success)
+    const mafiaRow = new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('join_mafia').setLabel('مافيا').setStyle(ButtonStyle.Secondary).setEmoji('🕵️‍♂️')
     );
 
-    return message.reply({ embeds: [mafiaEmbed], components: [row] });
+    return message.reply({ embeds: [mafiaEmbed], components: [mafiaRow] });
   }
 });
 
 // -------------------------------------------------------------
-// 🖱️ التفاعلات مع الأزرار
+// 🖱️ معالجة التفاعلات (الأزرار والخاص)
 // -------------------------------------------------------------
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isButton()) return;
 
-  // إرسال الصور للخاص عند ضغط Download
+  // زر تحميل الصور وإرسالها للخاص
   if (interaction.customId.startsWith('send_dm_')) {
     const userId = interaction.customId.replace('send_dm_', '');
     const data = client.tempStorage?.get(userId);
 
     if (!data) {
-      return interaction.reply({ content: '❌ انتهت صلاحية هذا الرابط.', ephemeral: true });
+      return interaction.reply({ content: '❌ انتهت صلاحية هذا الرابط، قم بطلب الأمر من جديد.', ephemeral: true });
     }
 
     try {
@@ -173,15 +190,27 @@ client.on('interactionCreate', async (interaction) => {
       );
 
       await interaction.user.send({ content: 'Nice profile', embeds: [dmEmbed], components: [downloadRow] });
-      return interaction.reply({ content: '✅ تم إرسال الصور إلى الخاص بنجاح!', ephemeral: true });
+      return interaction.reply({ content: '✅ تم إرسال الصور إلى الخاص بنجاح بعبارة **Nice profile**!', ephemeral: true });
     } catch (err) {
-      return interaction.reply({ content: '❌ تأكد من فتح الرسائل الخاصة لديك.', ephemeral: true });
+      return interaction.reply({ content: '❌ لم أتمكن من إرسال الرسالة على الخاص، تأكد من فتح الرسائل الخاصة لديك.', ephemeral: true });
     }
+  }
+
+  // تفاعل أزرار الروليت
+  if (interaction.customId.startsWith('roulette_')) {
+    if (interaction.customId === 'roulette_join') {
+      return interaction.reply({ content: `✅ تم تسجيليك في لعبة الروليت بنجاح!`, ephemeral: true });
+    }
+    if (interaction.customId === 'roulette_leave') {
+      return interaction.reply({ content: `❌ تم انسحابك من لعبة الروليت.`, ephemeral: true });
+    }
+    const num = interaction.customId.replace('roulette_num_', '');
+    return interaction.reply({ content: `🎯 لقد اخترت الرقم: **${num}**`, ephemeral: true });
   }
 
   // الانضمام للمافيا
   if (interaction.customId === 'join_mafia') {
-    return interaction.reply({ content: `✅ انضممت بنجاح إلى لعبة المافيا يا ${interaction.user}قريباً تبدأ الجولة!`, ephemeral: true });
+    return interaction.reply({ content: `✅ انضممت بنجاح إلى لعبة المافيا يا ${interaction.user}!`, ephemeral: true });
   }
 });
 
