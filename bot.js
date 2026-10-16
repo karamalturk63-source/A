@@ -110,16 +110,15 @@ client.on('messageCreate', async (message) => {
   }
 
   // -------------------------------------------------------------
-  // 3️⃣ لعبة الروليت (بأرقام الاختيار 1 إلى 20 وعجلة الحظ)[span_4](start_span)[span_4](end_span)
+  // 3️⃣ لعبة الروليت (تم تصحيح الخطأ البرمجي هنا)
   // -------------------------------------------------------------
   if (command === 'روليت' || command === 'roulette') {
     const rouletteEmbed = new EmbedBuilder()
       .setTitle('🎡 روليت')
-      .setDescription('طريقة اللعب:\n1- اختر الرقم الذي سيمثلك في اللعبة\n2- ستبدأ الجولة الأولى وسيتم تدوير العجلة واختيار لاعب عشوائي[span_5](start_span)[span_5](end_span)\n3- إذا كنت اللاعب المختار، فستختار لاعباً من اختيارك ليتم طرده من اللعبة[span_6](start_span)[span_6](end_span)\n4- يُطرد اللاعب وتبدأ جولة جديدة، عندما يُطرد جميع اللاعبين ويتبقى لاعبان فقط، ستدور العجلة ويكون اللاعب المختار هو الفائز باللعبة[span_7](start_span)[span_7](end_span)\n\n**أرقام اللاعبين: (0/20)**\n'لا يوجد لاعبين مشاركين باللعبة'')
+      .setDescription("طريقة اللعب:\n1- اختر الرقم الذي سيمثلك في اللعبة\n2- ستبدأ الجولة الأولى وسيتم تدوير العجلة واختيار لاعب عشوائي\n3- إذا كنت اللاعب المختار، فستختار لاعباً من اختيارك ليتم طرده من اللعبة\n4- يُطرد اللاعب وتبدأ جولة جديدة، عندما يُطرد جميع اللاعبين ويتبقى لاعبان فقط، ستدور العجلة ويكون اللاعب المختار هو الفائز باللعبة\n\n**أرقام اللاعبين: (0/20)**\nلا يوجد لاعبين مشاركين باللعبة")
       .setColor('#F1C40F')
       .setFooter({ text: 'ستبدأ اللعبة بعد 30 ثانية' });
 
-    // صفوف الأزرار للأرقام (من 1 إلى 20)
     const rows = [];
     for (let i = 0; i < 4; i++) {
       const row = new ActionRowBuilder();
@@ -145,12 +144,12 @@ client.on('messageCreate', async (message) => {
   }
 
   // -------------------------------------------------------------
-  // 4️⃣ لعبة المافيا[span_8](start_span)[span_8](end_span)
+  // 4️⃣ لعبة المافيا
   // -------------------------------------------------------------
   if (command === 'مافيا' || command === 'mafia') {
     const mafiaEmbed = new EmbedBuilder()
       .setTitle('🕵️‍♂️ | لعبة المافيا')
-      .setDescription('شرح اللعبة:\n1- انضم للعبة عبر الزر الأخضر الموجود في الأسفل[span_9](start_span)[span_9](end_span).\n2- كل لاعب يحصل على دور سري (مافيا، مواطن، طبيب، وغيرها)[span_10](start_span)[span_10](end_span).\n3- تتصرف الأدوار الخاصة سرأً؛ نهاراً يصوت الجميع لطر طرد مشتبه[span_11](start_span)[span_11](end_span).\n4- يفوز المواطنون بإقصاء جميع القاتلين، المافيا تفوز إن تفوق عددهم على المواطنين المتبقيين[span_12](start_span)[span_12](end_span).\n\n**المشاركين (0/20):**')
+      .setDescription("شرح اللعبة:\n1- انضم للعبة عبر الزر الأخضر الموجود في الأسفل.\n2- كل لاعب يحصل على دور سري (مافيا، مواطن، طبيب، وغيرها).\n3- تتصرف الأدوار الخاصة سرأً؛ نهاراً يصوت الجميع لطرد مشتبه.\n4- يفوز المواطنون بإقصاء جميع القاتلين، المافيا تفوز إن تفوق عددهم على المواطنين المتبقيين.\n\n**المشاركين (0/20):**")
       .setColor('#E74C3C')
       .setFooter({ text: 'in 30 seconds' });
 
@@ -168,7 +167,6 @@ client.on('messageCreate', async (message) => {
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isButton()) return;
 
-  // زر تحميل الصور وإرسالها للخاص
   if (interaction.customId.startsWith('send_dm_')) {
     const userId = interaction.customId.replace('send_dm_', '');
     const data = client.tempStorage?.get(userId);
@@ -196,7 +194,6 @@ client.on('interactionCreate', async (interaction) => {
     }
   }
 
-  // تفاعل أزرار الروليت
   if (interaction.customId.startsWith('roulette_')) {
     if (interaction.customId === 'roulette_join') {
       return interaction.reply({ content: `✅ تم تسجيليك في لعبة الروليت بنجاح!`, ephemeral: true });
@@ -208,7 +205,6 @@ client.on('interactionCreate', async (interaction) => {
     return interaction.reply({ content: `🎯 لقد اخترت الرقم: **${num}**`, ephemeral: true });
   }
 
-  // الانضمام للمافيا
   if (interaction.customId === 'join_mafia') {
     return interaction.reply({ content: `✅ انضممت بنجاح إلى لعبة المافيا يا ${interaction.user}!`, ephemeral: true });
   }
